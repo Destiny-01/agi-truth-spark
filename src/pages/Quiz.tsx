@@ -1,15 +1,25 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { QuizQuestion } from "@/components/quiz/QuizQuestion";
-import { quizzes, funWhatIfs } from "@/data/quizData";
+import { difficulties, funWhatIfs } from "@/data/quizData";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { RobotCharacter } from "@/components/RobotCharacter";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
+interface DifficultyProgress {
+  [difficulty: string]: {
+    [setId: number]: {
+      completed: boolean;
+      highScore: number;
+    };
+  };
+}
+
 export default function Quiz() {
-  const { quizId } = useParams();
+  const { difficulty, setId } = useParams();
   const navigate = useNavigate();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -17,16 +27,17 @@ export default function Quiz() {
   const [isComplete, setIsComplete] = useState(false);
   const [randomWhatIf, setRandomWhatIf] = useState("");
 
-  const quiz = quizzes.find((q) => q.id === Number(quizId));
+  const difficultyLevel = difficulties.find(d => d.id === difficulty);
+  const quizSet = difficultyLevel?.sets.find(s => s.id === Number(setId));
 
   useEffect(() => {
-    if (!quiz) {
+    if (!difficultyLevel || !quizSet) {
       navigate("/");
     }
     setRandomWhatIf(funWhatIfs[Math.floor(Math.random() * funWhatIfs.length)]);
-  }, [quiz, navigate]);
+  }, [difficultyLevel, quizSet, navigate]);
 
-  if (!quiz) return null;
+  if (!difficultyLevel || !quizSet) return null;
 
   const handleAnswer = (isCorrect: boolean) => {
     if (isCorrect) {
@@ -39,7 +50,7 @@ export default function Quiz() {
       setStreak(0);
     }
 
-    if (currentQuestionIndex < quiz.questions.length - 1) {
+    if (currentQuestionIndex < quizSet.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
       // Quiz complete
@@ -49,10 +60,15 @@ export default function Quiz() {
   };
 
   const saveProgress = () => {
-    const progress = JSON.parse(localStorage.getItem("quizProgress") || "{}");
-    const currentHigh = progress[quiz.id]?.highScore || 0;
+    const progress: DifficultyProgress = JSON.parse(localStorage.getItem("quizProgress") || "{}");
     
-    progress[quiz.id] = {
+    if (!progress[difficulty!]) {
+      progress[difficulty!] = {};
+    }
+    
+    const currentHigh = progress[difficulty!][Number(setId)]?.highScore || 0;
+    
+    progress[difficulty!][Number(setId)] = {
       completed: true,
       highScore: Math.max(score + 1, currentHigh), // +1 because we haven't incremented yet
     };
@@ -69,8 +85,8 @@ export default function Quiz() {
   };
 
   if (isComplete) {
-    const percentage = Math.round((score / quiz.questions.length) * 100);
-    const isPerfect = score === quiz.questions.length;
+    const percentage = Math.round((score / quizSet.questions.length) * 100);
+    const isPerfect = score === quizSet.questions.length;
 
     return (
       <div className="min-h-screen py-12 px-4 flex items-center justify-center">
@@ -83,7 +99,13 @@ export default function Quiz() {
             </h1>
             
             <div className="text-6xl font-bold text-primary mb-6">
-              {score}/{quiz.questions.length}
+              {score}/{quizSet.questions.length}
+            </div>
+            
+            <div className="mb-4">
+              <Badge className="bg-secondary/20 text-secondary-foreground border-secondary">
+                {difficultyLevel.title} - {quizSet.title}
+              </Badge>
             </div>
             
             <p className="text-xl text-muted-foreground mb-2">
@@ -111,12 +133,20 @@ export default function Quiz() {
                 Try Again
               </Button>
               <Button
-                onClick={() => navigate("/")}
+                onClick={() => navigate(`/level/${difficulty}`)}
                 size="lg"
                 variant="outline"
                 className="border-primary/50 hover:border-primary hover:bg-primary/10"
               >
-                More Quizzes
+                Back to Sets
+              </Button>
+              <Button
+                onClick={() => navigate("/")}
+                size="lg"
+                variant="ghost"
+                className="hover:bg-primary/10 text-primary"
+              >
+                Home
               </Button>
             </div>
           </Card>
@@ -129,17 +159,25 @@ export default function Quiz() {
     <div className="min-h-screen py-12">
       <div className="max-w-6xl mx-auto mb-8 px-4">
         <Button
-          onClick={() => navigate("/")}
+          onClick={() => navigate(`/level/${difficulty}`)}
           variant="ghost"
           className="hover:bg-primary/10 text-primary"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Home
+          Back to Sets
         </Button>
       </div>
 
       <div className="mb-8 text-center">
-        <h2 className="text-2xl font-bold text-primary-glow mb-2">{quiz.title}</h2>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Badge className="bg-secondary/20 text-secondary-foreground border-secondary">
+            {difficultyLevel.title}
+          </Badge>
+          <span className="text-muted-foreground">•</span>
+          <Badge className="bg-primary/20 text-primary-foreground border-primary">
+            {quizSet.title}
+          </Badge>
+        </div>
         {streak > 0 && (
           <div className="text-accent font-bold animate-pulse-glow">
             🔥 Streak: {streak}
@@ -148,9 +186,9 @@ export default function Quiz() {
       </div>
 
       <QuizQuestion
-        question={quiz.questions[currentQuestionIndex]}
+        question={quizSet.questions[currentQuestionIndex]}
         questionNumber={currentQuestionIndex + 1}
-        totalQuestions={quiz.questions.length}
+        totalQuestions={quizSet.questions.length}
         onAnswer={handleAnswer}
       />
     </div>
