@@ -82,24 +82,6 @@ export default function DifficultySelect() {
             );
           })}
         </div>
-
-        {/* Footer */}
-        <footer className="text-center text-sm text-muted-foreground">
-          <p className="mb-2">
-            Built to educate about AGI in a fun, accessible way
-          </p>
-          <p>
-            Learn more about AI safety from{" "}
-            <a
-              href="https://futureoflife.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:text-primary-glow underline"
-            >
-              Future of Life Institute
-            </a>
-          </p>
-        </footer>
       </div>
     </div>
   );
